@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fake News Detector</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f4f7f6;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,.1);
+        }
+        h1 { color: #2c3e50; }
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: 0;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            margin-right: 5px;
+        }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        #status { margin-top: 15px; font-weight: bold; color: #7f8c8d; }
+        #result { margin-top: 20px; font-size: 18px; font-weight: bold; }
+        .real { color: #27ae60; }
+        .fake { color: #c0392b; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>AI Fake News Detector</h1>
+    <p>Enter a news headline or text and let the trained neural-network backend classify it.</p>
+
+    <button id="trainBtn" onclick="trainModel()">1. Train AI Model</button>
+    <span id="status">Status: Waiting to train model...</span>
+
+    <hr style="margin:25px 0;">
+
+    <label for="newsInput"><strong>2. Enter a News Headline / Text:</strong></label>
+    <br><br>
+    <textarea id="newsInput"
+        placeholder="e.g. German foreign ministers meet after detainee released..."></textarea>
+    <button id="predictBtn" onclick="predictNews()" disabled>Predict Fake/Real</button>
+
+    <div id="result"></div>
+</div>
+
+<script>
+    const API_URL = "http://localhost:5000";
+
+    async function trainModel() {
+        const trainBtn = document.getElementById("trainBtn");
+        const predictBtn = document.getElementById("predictBtn");
+        const status = document.getElementById("status");
+        const result = document.getElementById("result");
+
+        trainBtn.disabled = true;
+        result.innerHTML = "";
+        status.innerText = "Status: Training AI model on the backend...";
+
+        try {
+            const response = await fetch(`${API_URL}/train`, { method: "POST" });
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.error || "Training failed");
+
+            status.innerText =
+                `Status: Training Complete! Accuracy: ${(data.accuracy * 100).toFixed(1)}%`;
+            predictBtn.disabled = false;
+        } catch (error) {
+            status.innerText = "Status: Backend connection/training error.";
+            result.innerText = error.message;
+            trainBtn.disabled = false;
+        }
+    }
+
+    async function predictNews() {
+        const text = document.getElementById("newsInput").value.trim();
+        const resultDiv = document.getElementById("result");
+
+        if (!text) {
+            resultDiv.innerText = "Please enter some text first.";
+            return;
+        }
+
+        resultDiv.innerText = "Analyzing...";
+
+        try {
+            const response = await fetch(`${API_URL}/predict`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Prediction failed");
+
+            if (data.label === "REAL NEWS") {
+                resultDiv.innerHTML =
+                    `Result: <span class="real">REAL NEWS</span> ` +
+                    `(Confidence: ${data.confidence.toFixed(2)}%)`;
+            } else {
+                resultDiv.innerHTML =
+                    `Result: <span class="fake">FAKE NEWS</span> ` +
+                    `(Confidence: ${data.confidence.toFixed(2)}%)`;
+            }
+        } catch (error) {
+            resultDiv.innerText = error.message;
+        }
+    }
+</script>
+</body>
+</html>
